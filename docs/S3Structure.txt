@@ -1,0 +1,21 @@
+s3://nexus/
+├── incoming/
+│   └── <source>/<sourcetype>/year=<YYYY>/month=<MM>/day=<DD>/hour=<HH>/
+├── prism/
+│   └── <source>/sourcetype=<sourcetype>/year=<YYYY>/month=<MM>/day=<DD>/hour=<HH>/
+├── icebox/
+│   └── <source>/year=<YYYY>/month=<MM>/day=<DD>/hour=<HH>/
+├── analytics-hub/
+│   └── workgroup=<name>/query_date=<YYYY-MM-DD>/
+├── lab-workshop/
+│   ├── scripts/
+│   ├── udfs/
+│   ├── staging/
+│   └── tmp/
+├── outgoing/
+│   └── <source>/year=<YYYY>/month=<MM>/day=<DD>/hour=<HH>/
+├── playground/
+│   └── errors/<source>/year=<YYYY>/month=<MM>/day=<DD>/hour=<HH>/
+├── _checkpoints/
+│   └── <source>/
+└── _schemas/
