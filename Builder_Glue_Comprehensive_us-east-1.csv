@@ -1,0 +1,175 @@
+AWS Service,Actions/Permissions,Resources ARNs,Tags / Conditions,Comments,Business justification
+S3,Allow s3:ListAllMyBuckets,*,,Policy: S3-DevAccess / Sid: ListNexus,Enumerate buckets for workflows/UI.
+S3,Allow s3:ListBucket,arn:aws:s3:::nexus,"StringLike s3:prefix=[incoming/*, analytics-hub/*, prism/*, lab-workshop/*]
+StringEquals aws:sourceVpce=<YOUR_VPCE_ID>",Policy: S3-DevAccess / Sid: ListPrefixes,Browse required prefixes for development/testing.
+S3,"Allow s3:GetObject
+Allow s3:PutObject
+Allow s3:DeleteObject","arn:aws:s3:::nexus/lab-workshop/*
+arn:aws:s3:::nexus/analytics-hub/*",StringEquals aws:sourceVpce=<YOUR_VPCE_ID>,Policy: S3-DevAccess / Sid: RWDevAndAnalytics,Write ETL scripts and dev outputs; save Athena results.
+S3,Allow s3:GetObject,arn:aws:s3:::nexus/prism/*,StringEquals aws:sourceVpce=<YOUR_VPCE_ID>,Policy: S3-DevAccess / Sid: ReadPrismOnly,Read curated data for development/validation.
+S3,"Deny s3:PutObject
+Deny s3:DeleteObject","arn:aws:s3:::nexus/prism/*
+arn:aws:s3:::nexus/icebox/*",,Guardrail: DenyWriteCuratedRaw,Protect curated (prism) and raw (icebox) from human writes.
+Glue (Catalog),"Allow glue:GetDatabase
+Allow glue:GetDatabases
+Allow glue:GetTable
+Allow glue:GetTables
+Allow glue:SearchTables","arn:aws:glue:us-east-1:111122223333:catalog
+arn:aws:glue:us-east-1:111122223333:database/*
+arn:aws:glue:us-east-1:111122223333:table/*/*",,Read metadata across the catalog for development.,Builders need to inspect schema/metadata.
+Glue (Catalog),"Deny glue:DeleteTable
+Deny glue:BatchDeleteTable
+Deny glue:DeleteDatabase","arn:aws:glue:us-east-1:111122223333:database/prism
+arn:aws:glue:us-east-1:111122223333:table/prism/*",,Guardrail: Deny destructive DDL in curated (prism).,Avoid accidental deletion of production tables/db.
+Glue (Catalog),"Allow glue:CreateTable
+Allow glue:UpdateTable
+Allow glue:GetPartition
+Allow glue:GetPartitions","arn:aws:glue:us-east-1:111122223333:catalog
+arn:aws:glue:us-east-1:111122223333:database/prism
+arn:aws:glue:us-east-1:111122223333:table/prism/*",,Permit non-destructive schema evolution and reads in curated.,Allow safe updates; drops remain denied (Lake Formation also applies).
+Glue (Catalog),"Allow glue:CreateDatabase
+Allow glue:UpdateDatabase
+Allow glue:DeleteDatabase
+Allow glue:CreateTable
+Allow glue:UpdateTable
+Allow glue:DeleteTable
+Allow glue:GetDatabase
+Allow glue:GetTable
+Allow glue:GetTables","arn:aws:glue:us-east-1:111122223333:catalog
+arn:aws:glue:us-east-1:111122223333:database/security_scratch
+arn:aws:glue:us-east-1:111122223333:table/security_scratch/*",,Full control of scratch DB.,Builders need a safe sandbox for DDL.
+Glue (Catalog),"Allow glue:CreatePartition
+Allow glue:BatchCreatePartition
+Allow glue:UpdatePartition
+Allow glue:BatchUpdatePartition
+Allow glue:DeletePartition
+Allow glue:BatchDeletePartition
+Allow glue:GetPartition
+Allow glue:GetPartitions
+Allow glue:CreatePartitionIndex
+Allow glue:DeletePartitionIndex
+Allow glue:GetPartitionIndexes","arn:aws:glue:us-east-1:111122223333:table/security_scratch/*
+arn:aws:glue:us-east-1:111122223333:table/prism/*",Note: Lake Formation enforces write privileges on curated tables,Partition & index management (curated writes still governed by LF).,Enable partition CRUD and performance indexes.
+Glue (Catalog),"Allow glue:CreateUserDefinedFunction
+Allow glue:UpdateUserDefinedFunction
+Allow glue:DeleteUserDefinedFunction
+Allow glue:GetUserDefinedFunction
+Allow glue:GetUserDefinedFunctions","arn:aws:glue:us-east-1:111122223333:database/security_scratch
+arn:aws:glue:us-east-1:111122223333:table/security_scratch/*",,UDFs scoped to scratch.,Register UDFs for dev workloads.
+Glue (Catalog),"Allow glue:CreateConnection
+Allow glue:UpdateConnection
+Allow glue:DeleteConnection
+Allow glue:GetConnection
+Allow glue:GetConnections
+Allow glue:TestConnection",arn:aws:glue:us-east-1:111122223333:connection/*,"Create: require aws:RequestTag/Environment=Dev
+Update/Delete: require aws:ResourceTag/Environment=Dev",Connections for dev data sources/targets.,Builders manage dev-only Glue connections.
+Glue (Catalog),"Allow glue:CreateSecurityConfiguration
+Allow glue:GetSecurityConfiguration
+Allow glue:GetSecurityConfigurations
+Allow glue:DeleteSecurityConfiguration",arn:aws:glue:us-east-1:111122223333:securityConfiguration/*,Dev-only naming or tag guard (Environment=Dev),Security configs for dev ETL.,Manage job bookmarks/encryption settings in dev.
+Glue (Jobs),Allow glue:CreateJob,*,"Require aws:RequestTag/Environment=Dev
+Require aws:RequestTag/Project=DataDash
+ForAllValues:StringEquals aws:TagKeys=[Environment, Project]",CreateDevJobs (tag-on-create enforcement).,Builders may create jobs only when tagged as Dev.
+Glue (Jobs),"Allow glue:UpdateJob
+Allow glue:DeleteJob
+Allow glue:GetJob
+Allow glue:GetJobs
+Allow glue:GetJobRun
+Allow glue:GetJobRuns
+Allow glue:TagResource
+Allow glue:UntagResource",arn:aws:glue:us-east-1:111122223333:job/*,StringEquals aws:ResourceTag/Environment=Dev,UpdateDeleteDevJobs.,Manage dev jobs only.
+Glue (Jobs),"Allow glue:StartJobRun
+Allow glue:BatchStopJobRun",arn:aws:glue:us-east-1:111122223333:job/*,StringEquals aws:ResourceTag/Environment=Dev,RunDevJobsOnly.,Run dev jobs for testing and QA.
+Glue (Jobs),"Deny glue:StartJobRun
+Deny glue:BatchStopJobRun
+Deny glue:UpdateJob
+Deny glue:DeleteJob",arn:aws:glue:us-east-1:111122223333:job/*,StringEquals aws:ResourceTag/Environment=Prod,Guardrail: No Prod job control from Builder.,Segregation of duties.
+Glue (Crawlers),"Allow glue:CreateCrawler
+Allow glue:UpdateCrawler
+Allow glue:DeleteCrawler
+Allow glue:GetCrawler
+Allow glue:GetCrawlers
+Allow glue:GetCrawlerMetrics",arn:aws:glue:us-east-1:111122223333:crawler/*,"Create: require aws:RequestTag/Environment=Dev
+Update/Delete: require aws:ResourceTag/Environment=Dev",Crawler CRUD for dev only.,Discover schemas on dev datasets.
+Glue (Crawlers),"Allow glue:StartCrawler
+Allow glue:StopCrawler
+Allow glue:StartCrawlerSchedule
+Allow glue:StopCrawlerSchedule",arn:aws:glue:us-east-1:111122223333:crawler/*,StringEquals aws:ResourceTag/Environment=Dev,Run dev crawlers only.,Permit running dev crawlers; no prod impact.
+Glue (Classifiers),"Allow glue:CreateClassifier
+Allow glue:UpdateClassifier
+Allow glue:DeleteClassifier
+Allow glue:GetClassifier
+Allow glue:GetClassifiers",arn:aws:glue:us-east-1:111122223333:classifier/*,"Create: require aws:RequestTag/Environment=Dev
+Update/Delete: require aws:ResourceTag/Environment=Dev",Classifier CRUD for dev only.,Allow builders to define custom parsers in dev.
+Glue (Triggers),"Allow glue:CreateTrigger
+Allow glue:UpdateTrigger
+Allow glue:DeleteTrigger
+Allow glue:GetTrigger
+Allow glue:GetTriggers
+Allow glue:StartTrigger
+Allow glue:StopTrigger",arn:aws:glue:us-east-1:111122223333:trigger/*,"Create: require aws:RequestTag/Environment=Dev
+Update/Delete/Start/Stop: require aws:ResourceTag/Environment=Dev",Trigger management for dev orchestrations.,Allow scheduling and event-based orchestration for dev.
+Glue (Workflows),"Allow glue:CreateWorkflow
+Allow glue:UpdateWorkflow
+Allow glue:DeleteWorkflow
+Allow glue:GetWorkflow
+Allow glue:GetWorkflows
+Allow glue:StartWorkflowRun
+Allow glue:StopWorkflowRun
+Allow glue:GetWorkflowRun
+Allow glue:GetWorkflowRuns",arn:aws:glue:us-east-1:111122223333:workflow/*,"Create: require aws:RequestTag/Environment=Dev
+Update/Delete/Start/Stop: require aws:ResourceTag/Environment=Dev",Workflow management for dev pipelines.,Enable complex dev ETL orchestration.
+Glue (ML Transforms),"Allow glue:CreateMLTransform
+Allow glue:UpdateMLTransform
+Allow glue:DeleteMLTransform
+Allow glue:GetMLTransform
+Allow glue:GetMLTransforms
+Allow glue:StartMLTransform
+Allow glue:StopMLTransform
+Allow glue:GetMLTaskRun
+Allow glue:GetMLTaskRuns
+Allow glue:StartMLEvaluationTaskRun
+Allow glue:StartMLLabelingSetGenerationTaskRun",arn:aws:glue:us-east-1:111122223333:mlTransform/*,"Create: require aws:RequestTag/Environment=Dev
+Update/Delete/Start/Stop: require aws:ResourceTag/Environment=Dev",ML-based entity resolution/transforms for dev.,Support advanced transform development.
+Glue (Blueprints),"Allow glue:CreateBlueprint
+Allow glue:UpdateBlueprint
+Allow glue:DeleteBlueprint
+Allow glue:GetBlueprint
+Allow glue:GetBlueprints
+Allow glue:StartBlueprintRun
+Allow glue:GetBlueprintRun
+Allow glue:GetBlueprintRuns",arn:aws:glue:us-east-1:111122223333:blueprint/*,"Create: require aws:RequestTag/Environment=Dev
+Update/Delete/Start: require aws:ResourceTag/Environment=Dev",Blueprint lifecycle in dev.,Enable templatized pipeline development.
+Glue (Sessions),Allow glue:CreateSession,arn:aws:glue:us-east-1:111122223333:session/*,"Require aws:RequestTag/Environment=Dev
+Require aws:RequestTag/owner=${aws:userId}
+ForAllValues:StringEquals aws:TagKeys=[Environment, owner]",Create Interactive Session (Dev).,Enable interactive authoring with ownership tagging.
+Glue (Sessions),"Allow glue:RunStatement
+Allow glue:GetStatement
+Allow glue:ListStatements
+Allow glue:CancelStatement
+Allow glue:GetSession
+Allow glue:StopSession",arn:aws:glue:us-east-1:111122223333:session/*,StringEquals aws:ResourceTag/owner=${aws:userId},Operate only on caller-owned sessions.,Permit running and managing own sessions/statements.
+Glue (Schema Registry),"Allow glue:CreateRegistry
+Allow glue:UpdateRegistry
+Allow glue:DeleteRegistry
+Allow glue:GetRegistry
+Allow glue:ListRegistries",arn:aws:glue:us-east-1:111122223333:registry/*,"Create: require aws:RequestTag/Environment=Dev
+Update/Delete: require aws:ResourceTag/Environment=Dev",Manage dev registries.,Schema management for streaming/dev.
+Glue (Schema Registry),"Allow glue:CreateSchema
+Allow glue:UpdateSchema
+Allow glue:DeleteSchema
+Allow glue:GetSchema
+Allow glue:GetSchemaByDefinition
+Allow glue:ListSchemas
+Allow glue:RegisterSchemaVersion
+Allow glue:GetSchemaVersion
+Allow glue:ListSchemaVersions
+Allow glue:DeleteSchemaVersions
+Allow glue:PutSchemaVersionMetadata
+Allow glue:RemoveSchemaVersionMetadata
+Allow glue:QuerySchemaVersionMetadata",arn:aws:glue:us-east-1:111122223333:schema/*,"Create: require aws:RequestTag/Environment=Dev
+Update/Delete: require aws:ResourceTag/Environment=Dev",Manage dev schemas and versions.,Enforce compatibility and evolution in dev.
+IAM,"Allow iam:PassRole
+Allow iam:GetRole",arn:aws:iam::111122223333:role/AWSGlueServiceRole-Dev,StringEquals iam:PassedToService=glue.amazonaws.com,PassRole-GlueDevOnly.,Allow Glue jobs/sessions to assume the Dev execution role only.
+Glue (Catalog),"Allow glue:ImportCatalogToGlue
+Allow glue:GetCatalogImportStatus",arn:aws:glue:us-east-1:111122223333:catalog,Admin note: use only against dev catalogs; consider approval for use in prod,Catalog import (legacy/rare).,Enable import routines when needed for dev migration.

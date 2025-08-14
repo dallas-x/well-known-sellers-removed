@@ -1,0 +1,71 @@
+AWS Service,Actions/Permissions,Resources ARNs,Tags / Conditions,Comments,Business justification
+Glue (Data Quality),"Allow glue:CreateDataQualityRuleset
+Allow glue:UpdateDataQualityRuleset
+Allow glue:DeleteDataQualityRuleset
+Allow glue:GetDataQualityRuleset
+Allow glue:ListDataQualityRulesets",arn:aws:glue:us-east-1:111122223333:dataQualityRuleset/*,"Create/Update require aws:RequestTag/Environment=Dev
+ForAllValues:StringEquals aws:TagKeys=[Environment,Project]",CRUD of rulesets for Dev.,Builders define and iterate on DQ rulesets for development.
+Glue (Data Quality),"Allow glue:StartDataQualityRulesetEvaluationRun
+Allow glue:GetDataQualityRulesetEvaluationRun
+Allow glue:ListDataQualityRulesetEvaluationRuns
+Allow glue:CancelDataQualityRulesetEvaluationRun
+Allow glue:GetDataQualityResult
+Allow glue:ListDataQualityResults
+Allow glue:StartDataQualityRuleRecommendationRun
+Allow glue:GetDataQualityRuleRecommendationRun
+Allow glue:ListDataQualityRuleRecommendationRuns
+Allow glue:CancelDataQualityRuleRecommendationRun
+Allow glue:PublishDataQuality
+Allow glue:PutDataQualityStatisticAnnotation
+Allow glue:PutDataQualityProfileAnnotation
+Allow glue:GetDataQualityModel
+Allow glue:GetDataQualityModelResult",arn:aws:glue:us-east-1:111122223333:dataQualityRuleset/*,StringEquals aws:ResourceTag/Environment=Dev,Run/inspect DQ evaluations & recommendations; publish results.,Enable end‑to‑end DQ lifecycle in Dev; Prod promotion via Controller only.
+Glue (Column Statistics),"Allow glue:CreateColumnStatisticsTaskSettings
+Allow glue:UpdateColumnStatisticsTaskSettings
+Allow glue:DeleteColumnStatisticsTaskSettings
+Allow glue:GetColumnStatisticsTaskSettings","arn:aws:glue:us-east-1:111122223333:catalog
+arn:aws:glue:us-east-1:111122223333:database/security_scratch
+arn:aws:glue:us-east-1:111122223333:table/security_scratch/*",StringEquals aws:RequestTag/Environment=Dev,Manage column statistics task settings (Dev only).,Permit creating/updating settings scoped to scratch resources.
+Glue (Column Statistics),"Allow glue:StartColumnStatisticsTaskRun
+Allow glue:StopColumnStatisticsTaskRun
+Allow glue:StartColumnStatisticsTaskRunSchedule
+Allow glue:StopColumnStatisticsTaskRunSchedule","arn:aws:glue:us-east-1:111122223333:catalog
+arn:aws:glue:us-east-1:111122223333:database/security_scratch
+arn:aws:glue:us-east-1:111122223333:table/security_scratch/*",StringEquals aws:ResourceTag/Environment=Dev,Execute/schedule column stats runs on scratch tables.,Avoids affecting curated production tables.
+Glue (Column Statistics),"Allow glue:GetColumnStatisticsTaskRun
+Allow glue:GetColumnStatisticsTaskRuns
+Allow glue:ListColumnStatisticsTaskRuns","arn:aws:glue:us-east-1:111122223333:catalog
+arn:aws:glue:us-east-1:111122223333:database/security_scratch
+arn:aws:glue:us-east-1:111122223333:table/security_scratch/*
+arn:aws:glue:us-east-1:111122223333:table/prism/*",,Read column stats run history in scratch (and read-only for prism).,Builders can inspect stats; cannot mutate prism.
+Glue (Studio),"Allow glue:UseGlueStudio
+Allow glue:CreateScript",*,Note: CreateScript does not support resource-level scope (AWS docs),Enable Glue Studio visual authoring & code generation.,Required for Studio DAG → PySpark code generation.
+Athena,"Allow athena:StartQueryExecution
+Allow athena:StopQueryExecution
+Allow athena:GetQueryExecution
+Allow athena:BatchGetQueryExecution
+Allow athena:GetQueryResults
+Allow athena:GetQueryResultsStream
+Allow athena:GetQueryRuntimeStatistics
+Allow athena:ListQueryExecutions",arn:aws:athena:us-east-1:111122223333:workgroup/dev,StringEquals aws:ResourceTag/Environment=Dev,Run/inspect queries in the dev workgroup only.,Builders need full query lifecycle in dev.
+Athena,"Allow athena:CreateNamedQuery
+Allow athena:DeleteNamedQuery
+Allow athena:GetNamedQuery
+Allow athena:BatchGetNamedQuery
+Allow athena:ListNamedQueries",arn:aws:athena:us-east-1:111122223333:workgroup/dev,StringEquals aws:ResourceTag/Environment=Dev,Manage named queries in dev workgroup.,Productivity convenience; non-destructive.
+Athena,"Allow athena:CreatePreparedStatement
+Allow athena:UpdatePreparedStatement
+Allow athena:DeletePreparedStatement
+Allow athena:GetPreparedStatement
+Allow athena:ListPreparedStatements",arn:aws:athena:us-east-1:111122223333:workgroup/dev,StringEquals aws:ResourceTag/Environment=Dev,Prepared statements in dev (parameterized queries).,"Support secure, reusable SQL in dev."
+Athena,"Allow athena:ListDataCatalogs
+Allow athena:GetDataCatalog
+Allow athena:UpdateDataCatalog
+Allow athena:CreateDataCatalog
+Allow athena:DeleteDataCatalog
+Allow athena:ListDatabases
+Allow athena:GetDatabase
+Allow athena:GetTableMetadata",arn:aws:athena:us-east-1:111122223333:datacatalog/AwsDataCatalog,,Catalog admin (if needed) – can be limited to default AWSDataCatalog by SCPs.,Ensure Builder can resolve metadata and manage non-prod catalogs.
+S3,"Allow s3:PutObject
+Allow s3:DeleteObject
+Allow s3:GetObject",arn:aws:s3:::nexus/analytics-hub/*,StringEquals aws:sourceVpce=<YOUR_VPCE_ID>,Athena output location (dev).,"Allow saving results, CTAS/UNLOAD outputs under analytics-hub."
